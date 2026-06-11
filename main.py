@@ -3,6 +3,7 @@ import threading
 import textwrap
 import queue
 from datetime import datetime
+from modules.settings.settings import TELEGRAM_ENABLED
 
 from langchain_ollama import ChatOllama
 from langchain_core.messages import (
@@ -12,6 +13,7 @@ from langchain_core.messages import (
 )
 
 from modules.settings.settings import MY_MODEL
+import subprocess
 
 # ==========================================================
 # OLLAMA CONFIG

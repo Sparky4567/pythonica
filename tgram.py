@@ -1,6 +1,7 @@
 import requests
 from telegram import Update
 from modules.settings.settings import MY_MODEL
+from modules.settings.settings import TELEGRAM_TOKEN
 from telegram.ext import (
     Application,
     MessageHandler,
@@ -8,14 +9,14 @@ from telegram.ext import (
     filters
 )
 
-BOT_TOKEN = ""
+BOT_TOKEN = TELEGRAM_TOKEN
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 MODEL = MY_MODEL
 
 
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
+    
     prompt = update.message.text
 
     print(f"Received: {prompt}")
@@ -58,7 +59,7 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-def main():
+def tele_run():
 
     app = (
         Application.builder()
@@ -77,4 +78,7 @@ def main():
 
     app.run_polling()
 
-
+try:
+    tele_run()
+except Exception as e:
+    print(f"Exception {e}")
