@@ -79,7 +79,7 @@ def tele_run():
 
     app.run_polling()
 
-if TELEGRAM_ENABLED is False:
+if TELEGRAM_ENABLED is not False:
     try:
         tele_run()
     except Exception as e:

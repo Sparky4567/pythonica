@@ -1,5 +1,5 @@
-MY_MODEL = "gemma3:270m"
-#MY_MODEL = "jedi:latest"
+#MY_MODEL = "gemma3:270m"
+MY_MODEL = "jedi:latest"
 
 # TELEGRAM - DISABLED BY DEFAULT
 TELEGRAM_ENABLED = True
