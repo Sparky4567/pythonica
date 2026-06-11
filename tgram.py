@@ -2,6 +2,7 @@ import requests
 from telegram import Update
 from modules.settings.settings import MY_MODEL
 from modules.settings.settings import TELEGRAM_TOKEN
+from modules.settings.settings import TELEGRAM_ENABLED
 from telegram.ext import (
     Application,
     MessageHandler,
@@ -78,7 +79,10 @@ def tele_run():
 
     app.run_polling()
 
-try:
-    tele_run()
-except Exception as e:
-    print(f"Exception {e}")
+if TELEGRAM_ENABLED is False:
+    try:
+        tele_run()
+    except Exception as e:
+        print(f"Exception {e}")
+else:
+    print("Change TELEGRAM_ENABLED in settings.py to true")
