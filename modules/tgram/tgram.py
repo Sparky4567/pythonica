@@ -1,40 +1,80 @@
 import requests
 from telegram import Update
-from telegram.ext import Application, MessageHandler, ContextTypes, filters
+from modules.settings.settings import MY_MODEL
+from telegram.ext import (
+    Application,
+    MessageHandler,
+    ContextTypes,
+    filters
+)
 
 BOT_TOKEN = ""
 
-OPENWEBUI_URL = "http://localhost:3000/api/chat/completions"
-#OPENWEBUI_API_KEY = "YOUR_API_KEY"
+OLLAMA_URL = "http://localhost:11434/api/chat"
+MODEL = MY_MODEL
 
-MODEL = "gemma3:270m"
 
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     prompt = update.message.text
-    print(prompt)
-#    payload = {
-#        "model": MODEL,
-#        "messages": [
-#            {"role": "user", "content": prompt}
-#        ]
-#    }
 
-#    headers = {
-#        "Authorization": f"Bearer {OPENWEBUI_API_KEY}",
-#        "Content-Type": "application/json"
-#    }
+    print(f"Received: {prompt}")
 
-#    response = requests.post(
-#        OPENWEBUI_URL,
-#        json=payload
-#       headers=headers
-#    )
+    payload = {
+        "model": MODEL,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "stream": False
+    }
 
-#    answer = response.json()["choices"][0]["message"]["content"]
+    try:
 
-#    await update.message.reply_text(answer)
+        response = requests.post(
+            OLLAMA_URL,
+            json=payload,
+            timeout=120
+        )
 
-app = Application.builder().token(BOT_TOKEN).build()
-app.add_handler(MessageHandler(filters.TEXT, chat))
+        response.raise_for_status()
 
-app.run_polling()
+        data = response.json()
+
+        answer = data["message"]["content"]
+
+        print(f"Reply: {answer}")
+
+        await update.message.reply_text(answer)
+
+    except Exception as e:
+
+        print("ERROR:", e)
+
+        await update.message.reply_text(
+            f"Error contacting Ollama:\n{e}"
+        )
+
+
+def main():
+
+    app = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .build()
+    )
+
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            chat
+        )
+    )
+
+    print("Bot started...")
+
+    app.run_polling()
+
+

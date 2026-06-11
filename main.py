@@ -1,17 +1,29 @@
 import pygame
-import requests
 import threading
-import json
 import textwrap
 import queue
 from datetime import datetime
+
+from langchain_ollama import ChatOllama
+from langchain_core.messages import (
+    HumanMessage,
+    AIMessage,
+    SystemMessage,
+)
+
+from modules.settings.settings import MY_MODEL
 
 # ==========================================================
 # OLLAMA CONFIG
 # ==========================================================
 
-OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL = "gemma3:270m"
+MODEL = MY_MODEL
+
+llm = ChatOllama(
+    model=MODEL,
+    temperature=0.7,
+    stream=True,
+)
 
 # ==========================================================
 # WINDOW CONFIG
@@ -56,7 +68,11 @@ tiny_font = pygame.font.SysFont("consolas", 14)
 # ==========================================================
 
 messages = []
-conversation = []
+conversation = [
+    #SystemMessage(
+    #    content="You are a helpful assistant."
+    #)
+]
 
 input_text = ""
 
@@ -102,56 +118,28 @@ def ask_ollama(prompt):
 
     try:
 
-        conversation.append({
-            "role": "user",
-            "content": prompt
-        })
-
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": MODEL,
-                "messages": conversation,
-                "stream": True
-            },
-            stream=True,
-            timeout=600
+        conversation.append(
+            HumanMessage(content=prompt)
         )
 
         assistant_content = ""
 
-        for line in response.iter_lines():
+        for chunk in llm.stream(conversation):
 
-            if not line:
+            token = chunk.content
+
+            if not token:
                 continue
 
-            try:
-                data = json.loads(
-                    line.decode("utf-8")
-                )
-            except Exception:
-                continue
+            assistant_content += token
 
-            if "message" in data:
+            stream_queue.put(
+                ("token", token)
+            )
 
-                token = data["message"].get(
-                    "content",
-                    ""
-                )
-
-                assistant_content += token
-
-                stream_queue.put(
-                    ("token", token)
-                )
-
-            if data.get("done", False):
-                break
-
-        conversation.append({
-            "role": "assistant",
-            "content": assistant_content
-        })
+        conversation.append(
+            AIMessage(content=assistant_content)
+        )
 
         stream_queue.put(
             ("finished", None)
@@ -163,7 +151,8 @@ def ask_ollama(prompt):
             ("error", str(e))
         )
 
-    waiting = False
+    finally:
+        waiting = False
 
 
 # ==========================================================
