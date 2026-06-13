@@ -4,6 +4,10 @@ import textwrap
 import queue
 from datetime import datetime
 from modules.settings.settings import TELEGRAM_ENABLED
+from memory import (
+    remember,
+    retrieve_memories
+)
 
 from langchain_ollama import ChatOllama
 from langchain_core.messages import (
@@ -117,16 +121,100 @@ def role_color(role):
 def ask_ollama(prompt):
 
     global waiting
+    global conversation
 
     try:
 
-        conversation.append(
-            HumanMessage(content=prompt)
+        # --------------------------------------------------
+        # MEMORY COMMAND
+        # --------------------------------------------------
+
+        if prompt.startswith("/remember "):
+
+            memory_text = prompt.replace(
+                "/remember ",
+                "",
+                1
+            ).strip()
+
+            if memory_text:
+
+                remember(memory_text)
+
+                stream_queue.put(
+                    (
+                        "Memory status",
+                        f"Memory saved: {memory_text}"
+                    )
+                )
+
+            waiting = False
+            return
+
+        # --------------------------------------------------
+        # RETRIEVE RELEVANT MEMORIES
+        # --------------------------------------------------
+
+        relevant_memories = retrieve_memories(
+            prompt,
+            limit=25
         )
+
+        temp_conversation = []
+
+        if relevant_memories:
+
+            memory_block = "\n".join(
+                [
+                    f"- {memory}"
+                    for memory in relevant_memories
+                ]
+            )
+
+            temp_conversation.append(
+                SystemMessage(
+                    content=(
+                        "The following are memories "
+                        "you know about the user.\n\n"
+                        f"{memory_block}\n\n"
+                        "Use them when relevant."
+                    )
+                )
+            )
+
+        # --------------------------------------------------
+        # BUILD CONTEXT
+        # --------------------------------------------------
+
+        temp_conversation.extend(
+            conversation
+        )
+
+        temp_conversation.append(
+            HumanMessage(
+                content=prompt
+            )
+        )
+
+        # --------------------------------------------------
+        # SAVE USER MESSAGE
+        # --------------------------------------------------
+
+        conversation.append(
+            HumanMessage(
+                content=prompt
+            )
+        )
+
+        # --------------------------------------------------
+        # STREAM RESPONSE
+        # --------------------------------------------------
 
         assistant_content = ""
 
-        for chunk in llm.stream(conversation):
+        for chunk in llm.stream(
+            temp_conversation
+        ):
 
             token = chunk.content
 
@@ -136,26 +224,41 @@ def ask_ollama(prompt):
             assistant_content += token
 
             stream_queue.put(
-                ("token", token)
+                (
+                    "token",
+                    token
+                )
             )
 
+        # --------------------------------------------------
+        # SAVE ASSISTANT RESPONSE
+        # --------------------------------------------------
+
         conversation.append(
-            AIMessage(content=assistant_content)
+            AIMessage(
+                content=assistant_content
+            )
         )
 
         stream_queue.put(
-            ("finished", None)
+            (
+                "finished",
+                None
+            )
         )
 
     except Exception as e:
 
         stream_queue.put(
-            ("error", str(e))
+            (
+                "error",
+                str(e)
+            )
         )
 
     finally:
-        waiting = False
 
+        waiting = False
 
 # ==========================================================
 # CHAT RENDERER
